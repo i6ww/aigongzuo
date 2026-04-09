@@ -1,51 +1,62 @@
-// 模型数据
+// 模型数据 - 使用新的firefly模型命名
 const MODELS = {
     "1K": [
-        "nano-banana-pro-1k-16:9",
-        "nano-banana-pro-1k-9:16",
-        "nano-banana-pro-1k-1:1",
-        "nano-banana-pro-1k-4:3",
-        "nano-banana-pro-1k-3:4",
-        "nano-banana-2-1k-16:9",
-        "nano-banana-2-1k-9:16",
-        "nano-banana-2-1k-1:1",
-        "nano-banana-2-1k-4:3",
-        "nano-banana-2-1k-3:4",
+        "firefly-nano-banana-pro-1k-16x9",
+        "firefly-nano-banana-pro-1k-9x16",
+        "firefly-nano-banana-pro-1k-1x1",
+        "firefly-nano-banana-pro-1k-4x3",
+        "firefly-nano-banana-pro-1k-3x4",
+        "firefly-nano-banana-1k-16x9",
+        "firefly-nano-banana-1k-9x16",
+        "firefly-nano-banana-1k-1x1",
+        "firefly-nano-banana-1k-4x3",
+        "firefly-nano-banana-1k-3x4",
+        "firefly-nano-banana2-1k-16x9",
+        "firefly-nano-banana2-1k-9x16",
+        "firefly-nano-banana2-1k-1x1",
+        "firefly-nano-banana2-1k-4x3",
+        "firefly-nano-banana2-1k-3x4",
     ],
     "2K": [
-        "nano-banana-pro-2k-16:9",
-        "nano-banana-pro-2k-9:16",
-        "nano-banana-pro-2k-1:1",
-        "nano-banana-pro-2k-4:3",
-        "nano-banana-pro-2k-3:4",
-        "nano-banana-2-2k-16:9",
-        "nano-banana-2-2k-9:16",
-        "nano-banana-2-2k-1:1",
-        "nano-banana-2-2k-4:3",
-        "nano-banana-2-2k-3:4",
+        "firefly-nano-banana-pro-2k-16x9",
+        "firefly-nano-banana-pro-2k-9x16",
+        "firefly-nano-banana-pro-2k-1x1",
+        "firefly-nano-banana-pro-2k-4x3",
+        "firefly-nano-banana-pro-2k-3x4",
+        "firefly-nano-banana-2k-16x9",
+        "firefly-nano-banana-2k-9x16",
+        "firefly-nano-banana-2k-1x1",
+        "firefly-nano-banana-2k-4x3",
+        "firefly-nano-banana-2k-3x4",
+        "firefly-nano-banana2-2k-16x9",
+        "firefly-nano-banana2-2k-9x16",
+        "firefly-nano-banana2-2k-1x1",
+        "firefly-nano-banana2-2k-4x3",
+        "firefly-nano-banana2-2k-3x4",
     ],
     "4K": [
-        "nano-banana-pro-4k-16:9",
-        "nano-banana-pro-4k-9:16",
-        "nano-banana-pro-4k-1:1",
-        "nano-banana-pro-4k-4:3",
-        "nano-banana-pro-4k-3:4",
-        "nano-banana-2-4k-16:9",
-        "nano-banana-2-4k-9:16",
-        "nano-banana-2-4k-1:1",
-        "nano-banana-2-4k-4:3",
-        "nano-banana-2-4k-3:4",
+        "firefly-nano-banana-pro-4k-16x9",
+        "firefly-nano-banana-pro-4k-9x16",
+        "firefly-nano-banana-pro-4k-1x1",
+        "firefly-nano-banana-pro-4k-4x3",
+        "firefly-nano-banana-pro-4k-3x4",
+        "firefly-nano-banana-4k-16x9",
+        "firefly-nano-banana-4k-9x16",
+        "firefly-nano-banana-4k-1x1",
+        "firefly-nano-banana-4k-4x3",
+        "firefly-nano-banana-4k-3x4",
+        "firefly-nano-banana2-4k-16x9",
+        "firefly-nano-banana2-4k-9x16",
+        "firefly-nano-banana2-4k-1x1",
+        "firefly-nano-banana2-4k-4x3",
+        "firefly-nano-banana2-4k-3x4",
     ]
 };
 
 // 状态
-let currentTool = 'text2image';
-let uploadedImage = null;
-let isGenerating = false;
 let currentResolution = '2K';
-let currentRatio = '16:9';
-let currentApiKey = '';
-let chatHistory = [];
+let currentMode = 'text2image';  // text2image 或 image2image
+let uploadedImage = null;  // base64格式的已上传图片
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,31 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
-// 加载设置 - 不自动填充API Key，保证隐私
+// 加载设置
 function loadSettings() {
-    // 只加载分辨率和宽高比设置，不加载API Key
     currentResolution = localStorage.getItem('resolution') || '2K';
-    currentRatio = localStorage.getItem('ratio') || '16:9';
     
     // 更新UI
     document.querySelectorAll('.resolution-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.res === currentResolution);
     });
-    document.querySelectorAll('.ratio-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.ratio === currentRatio);
-    });
-}
-
-// 保存API Key
-function saveApiKey() {
-    const apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey) {
-        alert('请输入 API Key');
-        return;
-    }
-    localStorage.setItem('apiKey', apiKey);
-    currentApiKey = apiKey;
-    alert('保存成功!');
+    
+    // 更新模型列表
+    updateModels();
 }
 
 // 加载主题
@@ -101,127 +98,141 @@ function toggleTheme() {
 function setTheme(theme) {
     if (theme === 'light') {
         document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('themeIcon').innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
     } else {
         document.documentElement.removeAttribute('data-theme');
+        document.getElementById('themeIcon').innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
     }
 }
 
 // 初始化模型选择
 function initModelSelect() {
-    updateModelSelect();
+    updateModels();
 }
 
-function updateModelSelect() {
-    const modelSelect = document.getElementById('modelSelect');
-    const models = MODELS[currentResolution] || [];
+// 更新模型列表
+function updateModels() {
+    const select = document.getElementById('modelSelect');
+    select.innerHTML = '';
     
-    modelSelect.innerHTML = '';
+    const models = MODELS[currentResolution] || [];
+    let lastVersion = '';
+    
     models.forEach(model => {
+        const version = getModelVersion(model);
+        if (version !== lastVersion) {
+            // 添加版本分组标题
+            const group = document.createElement('optgroup');
+            group.label = version;
+            select.appendChild(group);
+            lastVersion = version;
+        }
+        
         const option = document.createElement('option');
         option.value = model;
-        option.textContent = formatModelName(model);
-        modelSelect.appendChild(option);
+        option.textContent = '  ' + getRatioDisplay(model);
+        select.appendChild(option);
     });
 }
 
-// 格式化模型名称
-function formatModelName(model) {
-    const parts = model.split('-');
-    if (parts.length >= 5) {
-        let version = '';
-        if (parts[2] === 'pro') {
-            version = 'Pro ';
-        } else if (!isNaN(parts[2])) {
-            version = 'V' + parts[2] + ' ';
-        }
-        const resolution = parts[parts.length - 2].toUpperCase();
-        const ratio = parts[parts.length - 1];
-        return version + resolution + ' ' + ratio;
+// 获取模型版本
+function getModelVersion(model) {
+    if (model.includes('nano-banana-pro')) return 'firefly-nano-banana-pro';
+    if (model.includes('nano-banana2')) return 'firefly-nano-banana2';
+    if (model.includes('nano-banana')) return 'firefly-nano-banana';
+    return model.split('-').slice(0, 3).join('-');
+}
+
+// 获取比例显示
+function getRatioDisplay(model) {
+    const ratioMatch = model.match(/(\d+)x(\d+)/);
+    if (ratioMatch) {
+        const w = ratioMatch[1];
+        const h = ratioMatch[2];
+        const label = w === h ? '方形' : (parseInt(w) > parseInt(h) ? '横屏' : '竖屏');
+        return `${w}:${h} ${label}`;
     }
     return model;
 }
 
-// 设置分辨率
-function setResolution(res) {
-    currentResolution = res;
-    localStorage.setItem('resolution', res);
-    document.querySelectorAll('.resolution-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.res === res);
-    });
-    updateModelSelect();
-}
-
-// 设置宽高比
-function setRatio(ratio) {
-    currentRatio = ratio;
-    localStorage.setItem('ratio', ratio);
-    document.querySelectorAll('.ratio-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.ratio === ratio);
-    });
-}
-
-// 切换工具
-function switchTool(tool) {
-    currentTool = tool;
-    document.querySelectorAll('.tool-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.tool === tool);
-    });
-    
-    // 显示/隐藏图片上传按钮
-    const attachBtn = document.getElementById('attachBtn');
-    attachBtn.style.display = tool === 'image2image' ? 'flex' : 'none';
-    
-    // 清空输入
-    document.getElementById('messageInput').value = '';
-}
-
-// 事件监听
+// 设置事件监听
 function setupEventListeners() {
+    // 输入框快捷键
     const input = document.getElementById('messageInput');
-    input.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
-    
     input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            sendGenerate();
         }
+    });
+    
+    // 生成按钮
+    document.getElementById('generateBtn').addEventListener('click', sendGenerate);
+    
+    // 模式切换
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            currentMode = this.dataset.mode;
+            
+            const uploadArea = document.getElementById('uploadArea');
+            if (currentMode === 'image2image') {
+                uploadArea.style.display = 'flex';
+                document.getElementById('welcomeMessage').style.display = 'none';
+            } else {
+                uploadArea.style.display = 'none';
+                document.getElementById('welcomeMessage').style.display = 'flex';
+            }
+        });
+    });
+    
+    // 分辨率按钮
+    document.querySelectorAll('.resolution-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.resolution-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentResolution = this.dataset.res;
+            localStorage.setItem('resolution', currentResolution);
+            updateModels();
+        });
     });
 }
 
-// 图片上传
+// 处理图片上传
 function handleImageUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = function(e) {
         uploadedImage = e.target.result;
-        document.getElementById('previewImg').src = uploadedImage;
-        document.getElementById('inputToolbar').style.display = 'block';
+        document.getElementById('previewImage').src = uploadedImage;
+        document.getElementById('previewImage').style.display = 'block';
+        document.getElementById('uploadPlaceholder').style.display = 'none';
+        document.getElementById('removeImage').style.display = 'block';
     };
     reader.readAsDataURL(file);
 }
 
+// 移除已上传图片
 function removeUploadedImage() {
     uploadedImage = null;
+    document.getElementById('previewImage').src = '';
+    document.getElementById('previewImage').style.display = 'none';
+    document.getElementById('uploadPlaceholder').style.display = 'flex';
+    document.getElementById('removeImage').style.display = 'none';
     document.getElementById('imageInput').value = '';
-    document.getElementById('previewImg').src = '';
-    document.getElementById('inputToolbar').style.display = 'none';
 }
 
-// 发送消息
-async function sendMessage() {
-    if (isGenerating) return;
+// 发送生成请求
+async function sendGenerate() {
+    const prompt = document.getElementById('messageInput').value.trim();
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const model = document.getElementById('modelSelect').value;
     
-    const input = document.getElementById('messageInput');
-    const prompt = input.value.trim();
-    
-    // 图生图需要上传图片
-    if (currentTool === 'image2image' && !uploadedImage) {
-        alert('请先上传图片');
+    if (!apiKey) {
+        alert('请输入 API Key');
         return;
     }
     
@@ -230,173 +241,71 @@ async function sendMessage() {
         return;
     }
     
-    if (!currentApiKey) {
-        alert('请先设置 API Key');
+    // 图生图模式检查
+    if (currentMode === 'image2image' && !uploadedImage) {
+        alert('请上传一张图片');
         return;
     }
     
-    // 隐藏欢迎信息
+    // 显示加载状态
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+    
+    // 添加提示词到历史
+    addToHistory(prompt);
+    
+    // 显示结果区域
+    document.getElementById('resultArea').style.display = 'block';
     document.getElementById('welcomeMessage').style.display = 'none';
-    
-    // 添加用户消息
-    addMessage('user', prompt);
-    input.value = '';
-    input.style.height = 'auto';
-    
-    // 清空上传的图片
-    if (uploadedImage) {
-        removeUploadedImage();
-    }
-    
-    // 开始生成
-    isGenerating = true;
-    const loadingId = addLoadingMessage();
+    document.getElementById('resultLoading').style.display = 'flex';
+    document.getElementById('resultContent').innerHTML = '';
     
     try {
-        await generateImage(prompt, loadingId);
-    } catch (error) {
-        updateLoadingMessage(loadingId, '生成失败: ' + error.message);
-    }
-    
-    isGenerating = false;
-}
-
-// 添加消息
-function addMessage(role, content, imageUrl = null) {
-    const container = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
-    
-    const avatarIcon = role === 'user' ? '👤' : '🎨';
-    
-    let html = `
-        <div class="message-avatar">${avatarIcon}</div>
-        <div class="message-content">
-            <div class="message-text">${escapeHtml(content)}</div>
-    `;
-    
-    if (imageUrl) {
-        html += `
-            <div class="image-result">
-                <img src="${imageUrl}" alt="生成结果" onclick="window.open('${imageUrl}', '_blank')">
-                <div class="image-actions">
-                    <button onclick="viewImage('${imageUrl}')">查看大图</button>
-                    <button onclick="downloadImage('${imageUrl}')">下载</button>
-                </div>
-            </div>
-        `;
-    }
-    
-    html += '</div>';
-    messageDiv.innerHTML = html;
-    container.appendChild(messageDiv);
-    container.scrollTop = container.scrollHeight;
-    
-    // 保存到历史
-    if (role === 'user') {
-        addToHistory(content);
-    }
-}
-
-// 添加加载消息
-function addLoadingMessage() {
-    const container = document.getElementById('chatMessages');
-    const id = 'loading-' + Date.now();
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
-    messageDiv.id = id;
-    messageDiv.innerHTML = `
-        <div class="message-avatar">🎨</div>
-        <div class="message-content">
-            <div class="loading-dots">
-                <span></span><span></span><span></span>
-            </div>
-            <div class="loading-text" style="color: var(--text-muted); font-size: 13px; margin-top: 8px;">AI 正在生成图片...</div>
-        </div>
-    `;
-    container.appendChild(messageDiv);
-    container.scrollTop = container.scrollHeight;
-    return id;
-}
-
-// 更新加载消息
-function updateLoadingMessage(id, text, imageUrl = null) {
-    const messageDiv = document.getElementById(id);
-    if (!messageDiv) return;
-    
-    if (imageUrl) {
-        messageDiv.innerHTML = `
-            <div class="message-avatar">🎨</div>
-            <div class="message-content">
-                <div class="loading-text" style="color: var(--success);">生成完成!</div>
-                <div class="image-result">
-                    <img src="${imageUrl}" alt="生成结果" onclick="window.open('${imageUrl}', '_blank')">
-                    <div class="image-actions">
-                        <button onclick="viewImage('${imageUrl}')">查看大图</button>
-                        <button onclick="downloadImage('${imageUrl}')">下载</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    } else {
-        messageDiv.querySelector('.loading-text').textContent = text;
-    }
-}
-
-// 生成图片
-async function generateImage(prompt, loadingId) {
-    const model = document.getElementById('modelSelect').value;
-    const stream = document.getElementById('streamToggle').checked;
-    
-    const endpoint = currentTool === 'text2image' ? '/api/text-to-image' : '/api/image-to-image';
-    const data = {
-        apiKey: currentApiKey,
-        model: model,
-        prompt: prompt,
-        ...(currentTool === 'image2image' && { image: uploadedImage })
-    };
-    
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    let imageUrl = null;
-    
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const requestBody = {
+            apiKey: apiKey,
+            model: model,
+            prompt: prompt
+        };
         
-        const text = decoder.decode(value);
-        const lines = text.split('\n');
-        
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                try {
-                    const data = JSON.parse(line.slice(6));
-                    if (data.image) {
-                        imageUrl = data.image;
-                        updateLoadingMessage(loadingId, '生成完成!', imageUrl);
-                    } else if (data.error) {
-                        throw new Error(data.error);
-                    }
-                } catch (e) {
-                    // 忽略解析错误
-                }
-            }
+        // 图生图模式添加图片
+        if (currentMode === 'image2image' && uploadedImage) {
+            requestBody.image = uploadedImage;
         }
-    }
-    
-    if (!imageUrl) {
-        throw new Error('未获取到生成的图片');
+        
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            document.getElementById('resultLoading').style.display = 'none';
+            document.getElementById('resultContent').innerHTML = `<div class="error">生成失败: ${data.error}</div>`;
+            if (data.debug) console.log('Debug:', data.debug);
+            return;
+        }
+        
+        if (data.image) {
+            document.getElementById('resultLoading').style.display = 'none';
+            document.getElementById('resultContent').innerHTML = `
+                <img src="${data.image}" alt="生成结果" onclick="window.open('${data.image}', '_blank')">
+                <div class="result-actions">
+                    <button onclick="viewImage('${data.image}')">查看大图</button>
+                    <button onclick="downloadImage('${data.image}')">下载</button>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        document.getElementById('resultLoading').style.display = 'none';
+        document.getElementById('resultContent').innerHTML = `<div class="error">请求失败: ${error.message}</div>`;
+        console.error('Request error:', error);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '开始生成';
     }
 }
 
@@ -417,38 +326,35 @@ function downloadImage(url) {
 
 // 历史记录
 function addToHistory(prompt) {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const history = JSON.parse(localStorage.getItem('promptHistory') || '[]');
     const item = { id: Date.now(), prompt: prompt, time: new Date().toLocaleString() };
     history.unshift(item);
     if (history.length > 20) history.pop();
-    localStorage.setItem('chatHistory', JSON.stringify(history));
+    localStorage.setItem('promptHistory', JSON.stringify(history));
     loadHistory();
 }
 
 function loadHistory() {
-    const history = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+    const history = JSON.parse(localStorage.getItem('promptHistory') || '[]');
     const container = document.getElementById('historyList');
     container.innerHTML = history.map(item => `
-        <div class="history-item" onclick="loadHistoryItem('${escapeHtml(item.prompt)}')">
-            ${escapeHtml(item.prompt.substring(0, 30))}${item.prompt.length > 30 ? '...' : ''}
+        <div class="history-item" onclick="useHistoryPrompt('${escapeHtml(item.prompt)}')">
+            <div class="history-prompt">${escapeHtml(item.prompt.substring(0, 50))}${item.prompt.length > 50 ? '...' : ''}</div>
         </div>
     `).join('');
 }
 
-function loadHistoryItem(prompt) {
+function useHistoryPrompt(prompt) {
     document.getElementById('messageInput').value = prompt;
 }
 
-// 清空对话
-function clearChat() {
-    document.getElementById('chatMessages').innerHTML = '';
-    document.getElementById('welcomeMessage').style.display = 'flex';
-    document.getElementById('messageInput').value = '';
-}
-
-// HTML转义
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function clearHistory() {
+    localStorage.removeItem('promptHistory');
+    loadHistory();
 }

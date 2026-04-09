@@ -3,6 +3,7 @@ import requests
 import json
 import re
 import base64
+import time
 
 import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,42 +11,58 @@ app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url
 
 BASE_URL = "https://www.371181668.xyz"
 
+# 模型列表 - 使用新的firefly模型命名
 MODELS = {
     "1K": [
-        "nano-banana-pro-1k-16:9",
-        "nano-banana-pro-1k-9:16",
-        "nano-banana-pro-1k-1:1",
-        "nano-banana-pro-1k-4:3",
-        "nano-banana-pro-1k-3:4",
-        "nano-banana-2-1k-16:9",
-        "nano-banana-2-1k-9:16",
-        "nano-banana-2-1k-1:1",
-        "nano-banana-2-1k-4:3",
-        "nano-banana-2-1k-3:4",
+        "firefly-nano-banana-pro-1k-16x9",
+        "firefly-nano-banana-pro-1k-9x16",
+        "firefly-nano-banana-pro-1k-1x1",
+        "firefly-nano-banana-pro-1k-4x3",
+        "firefly-nano-banana-pro-1k-3x4",
+        "firefly-nano-banana-1k-16x9",
+        "firefly-nano-banana-1k-9x16",
+        "firefly-nano-banana-1k-1x1",
+        "firefly-nano-banana-1k-4x3",
+        "firefly-nano-banana-1k-3x4",
+        "firefly-nano-banana2-1k-16x9",
+        "firefly-nano-banana2-1k-9x16",
+        "firefly-nano-banana2-1k-1x1",
+        "firefly-nano-banana2-1k-4x3",
+        "firefly-nano-banana2-1k-3x4",
     ],
     "2K": [
-        "nano-banana-pro-2k-16:9",
-        "nano-banana-pro-2k-9:16",
-        "nano-banana-pro-2k-1:1",
-        "nano-banana-pro-2k-4:3",
-        "nano-banana-pro-2k-3:4",
-        "nano-banana-2-2k-16:9",
-        "nano-banana-2-2k-9:16",
-        "nano-banana-2-2k-1:1",
-        "nano-banana-2-2k-4:3",
-        "nano-banana-2-2k-3:4",
+        "firefly-nano-banana-pro-2k-16x9",
+        "firefly-nano-banana-pro-2k-9x16",
+        "firefly-nano-banana-pro-2k-1x1",
+        "firefly-nano-banana-pro-2k-4x3",
+        "firefly-nano-banana-pro-2k-3x4",
+        "firefly-nano-banana-2k-16x9",
+        "firefly-nano-banana-2k-9x16",
+        "firefly-nano-banana-2k-1x1",
+        "firefly-nano-banana-2k-4x3",
+        "firefly-nano-banana-2k-3x4",
+        "firefly-nano-banana2-2k-16x9",
+        "firefly-nano-banana2-2k-9x16",
+        "firefly-nano-banana2-2k-1x1",
+        "firefly-nano-banana2-2k-4x3",
+        "firefly-nano-banana2-2k-3x4",
     ],
     "4K": [
-        "nano-banana-pro-4k-16:9",
-        "nano-banana-pro-4k-9:16",
-        "nano-banana-pro-4k-1:1",
-        "nano-banana-pro-4k-4:3",
-        "nano-banana-pro-4k-3:4",
-        "nano-banana-2-4k-16:9",
-        "nano-banana-2-4k-9:16",
-        "nano-banana-2-4k-1:1",
-        "nano-banana-2-4k-4:3",
-        "nano-banana-2-4k-3:4",
+        "firefly-nano-banana-pro-4k-16x9",
+        "firefly-nano-banana-pro-4k-9x16",
+        "firefly-nano-banana-pro-4k-1x1",
+        "firefly-nano-banana-pro-4k-4x3",
+        "firefly-nano-banana-pro-4k-3x4",
+        "firefly-nano-banana-4k-16x9",
+        "firefly-nano-banana-4k-9x16",
+        "firefly-nano-banana-4k-1x1",
+        "firefly-nano-banana-4k-4x3",
+        "firefly-nano-banana-4k-3x4",
+        "firefly-nano-banana2-4k-16x9",
+        "firefly-nano-banana2-4k-9x16",
+        "firefly-nano-banana2-4k-1x1",
+        "firefly-nano-banana2-4k-4x3",
+        "firefly-nano-banana2-4k-3x4",
     ]
 }
 
@@ -60,151 +77,90 @@ def get_models():
     return jsonify(MODELS)
 
 
-@app.route('/api/text-to-image', methods=['POST'])
-def text_to_image():
+@app.route('/api/generate', methods=['POST'])
+def generate():
     data = request.json
     api_key = data.get('apiKey')
     model = data.get('model')
     prompt = data.get('prompt')
+    image_data = data.get('image')  # 图生图时使用
 
     if not api_key or not model or not prompt:
         return jsonify({'error': '缺少必要参数'}), 400
 
-    def generate():
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": True
-        }
-
-        try:
-            response = requests.post(
-                f"{BASE_URL}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json=payload,
-                stream=True,
-                timeout=600
-            )
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
-
-        if response.status_code != 200:
-            yield f"data: {json.dumps({'error': f'HTTP {response.status_code}'})}\n\n"
-            return
-
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                
-                # 检查是否是 markdown 图片链接
-                img_match = re.search(r'!\[.*?\]\((.+?)\)', line_str)
-                if img_match:
-                    img_url = img_match.group(1)
-                    yield f"data: {json.dumps({'image': img_url, 'done': True})}\n\n"
-                    return
-
-                # 处理SSE数据
-                if line_str.startswith('data: '):
-                    line_str = line_str[6:]
-                if line_str.strip() == '[DONE]':
-                    yield f"data: {json.dumps({'done': True})}\n\n"
-                    continue
-                if not line_str.strip():
-                    continue
-
-                try:
-                    line_json = json.loads(line_str)
-                    if 'choices' in line_json and line_json['choices']:
-                        choice = line_json['choices'][0]
-                        if 'delta' in choice:
-                            content = choice['delta'].get('content', '')
-                            if content:
-                                yield f"data: {json.dumps({'content': content})}\n\n"
-                except json.JSONDecodeError:
-                    continue
-
-    return Response(generate(), mimetype='text/event-stream')
-
-
-@app.route('/api/image-to-image', methods=['POST'])
-def image_to_image():
-    data = request.json
-    api_key = data.get('apiKey')
-    model = data.get('model')
-    prompt = data.get('prompt')
-    image_data = data.get('image')
-
-    if not api_key or not model or not prompt or not image_data:
-        return jsonify({'error': '缺少必要参数'}), 400
-
-    def generate():
-        # 确保图片是base64格式
-        if ',' in image_data:
-            image_b64 = image_data.split(',')[1]
-        else:
-            image_b64 = image_data
-
-        payload = {
-            "model": model,
-            "messages": [{
+    try:
+        # 构建消息内容
+        if image_data:
+            # 图生图模式
+            if ',' in image_data:
+                image_b64 = image_data.split(',')[1]
+            else:
+                image_b64 = image_data
+            
+            messages = [{
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
                 ]
-            }],
-            "stream": True
-        }
+            }]
+        else:
+            # 文生图模式
+            messages = [{"role": "user", "content": prompt}]
 
+        # 调用API（非流式，更容易解析）
         try:
             response = requests.post(
                 f"{BASE_URL}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}"},
-                json=payload,
-                stream=True,
-                timeout=600
+                json={
+                    "model": model,
+                    "messages": messages
+                },
+                timeout=120  # 2分钟超时
             )
+        except requests.exceptions.Timeout:
+            return jsonify({'error': '请求超时，请重试'}), 500
+        except requests.exceptions.ConnectionError:
+            return jsonify({'error': '无法连接到API服务器'}), 500
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-            return
+            return jsonify({'error': f'连接错误: {str(e)}'}), 500
 
         if response.status_code != 200:
-            yield f"data: {json.dumps({'error': f'HTTP {response.status_code}'})}\n\n"
-            return
+            return jsonify({'error': f'HTTP {response.status_code}: {response.text[:200]}'}), 500
 
-        for line in response.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                
-                # 检查是否是 markdown 图片链接
-                img_match = re.search(r'!\[.*?\]\((.+?)\)', line_str)
-                if img_match:
-                    img_url = img_match.group(1)
-                    yield f"data: {json.dumps({'image': img_url, 'done': True})}\n\n"
-                    return
+        # 解析响应
+        result = response.json()
+        
+        if 'choices' not in result or not result['choices']:
+            return jsonify({'error': 'API返回格式错误', 'debug': str(result)[:200]}), 500
 
-                # 处理SSE数据
-                if line_str.startswith('data: '):
-                    line_str = line_str[6:]
-                if line_str.strip() == '[DONE]':
-                    yield f"data: {json.dumps({'done': True})}\n\n"
-                    continue
-                if not line_str.strip():
-                    continue
+        content = result['choices'][0]['message']['content']
+        
+        # 提取图片URL（支持多种格式）
+        image_urls = []
+        
+        # Markdown格式: ![alt](url)
+        image_urls.extend(re.findall(r'!\[.*?\]\((.*?)\)', content))
+        
+        # 纯URL格式
+        image_urls.extend(re.findall(r'(https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp))', content, re.I))
+        
+        # 宽松URL匹配
+        for match in re.findall(r'https?://[^\s"\')\]]+', content):
+            if any(ext in match.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', 'file', 'img', 'generated']):
+                if match not in image_urls:
+                    image_urls.append(match)
 
-                try:
-                    line_json = json.loads(line_str)
-                    if 'choices' in line_json and line_json['choices']:
-                        choice = line_json['choices'][0]
-                        if 'delta' in choice:
-                            content = choice['delta'].get('content', '')
-                            if content:
-                                yield f"data: {json.dumps({'content': content})}\n\n"
-                except json.JSONDecodeError:
-                    continue
+        if image_urls:
+            return jsonify({'image': image_urls[0], 'allImages': image_urls, 'content': content})
+        else:
+            return jsonify({'error': '未找到图片', 'debug': content[:500]}), 500
 
-    return Response(generate(), mimetype='text/event-stream')
+    except requests.exceptions.Timeout:
+        return jsonify({'error': '请求超时'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/download')
@@ -228,6 +184,11 @@ def download_image():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/health')
+def health():
+    return {'status': 'ok'}
+
+
 if __name__ == '__main__':
-    import time
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=5000, debug=debug)
