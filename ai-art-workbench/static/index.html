@@ -89,6 +89,9 @@
                             <img class="preview-img" style="display: none;">
                             <button class="btn-remove" style="display: none;" onclick="event.stopPropagation(); removeUploadedImage(5)">✕</button>
                         </div>
+                        <div class="upload-footer">
+                            <span>📎 参考图最大支持 10MB</span>
+                        </div>
                     </div>
                     <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 </div>
@@ -133,6 +136,26 @@
                 <select id="modelSelect" class="model-select">
                     <!-- 动态生成 -->
                 </select>
+            </div>
+            
+            <div class="settings-section">
+                <h3>🌐 主站点</h3>
+                <div class="site-link">
+                    <a href="https://www.371181668.xyz" target="_blank" rel="noopener">https://www.371181668.xyz</a>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>📋 更新日志</h3>
+                <div class="changelog">
+                    <ul class="changelog-list">
+                        <li><span class="date">04.13</span> 新增主站点入口</li>
+                        <li><span class="date">04.10</span> 支持6张参考图</li>
+                        <li><span class="date">04.05</span> 新增4K分辨率</li>
+                        <li><span class="date">03.28</span> 深浅主题切换</li>
+                        <li><span class="date">03.20</span> 初始版本发布</li>
+                    </ul>
+                </div>
             </div>
         </aside>
     </div>
