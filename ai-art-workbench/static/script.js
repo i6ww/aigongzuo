@@ -97,9 +97,21 @@ const MODELS = {
 
 // 状态
 let currentResolution = '2K';
-let currentMode = 'text2image';  // text2image 或 image2image
+let currentMode = 'text2image';  // text2image 或 image2image 或 batch
 let uploadedImages = [null, null, null, null, null, null];  // 6张参考图
 let currentUploadIndex = 0;  // 当前上传的索引
+
+// 批量生成状态
+let batchTasks = [
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' },
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' },
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' },
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' },
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' },
+    { images: [null, null, null], prompt: '', result: null, status: 'pending' }
+];
+let currentBatchUploadTask = 0;
+let currentBatchUploadIndex = 0;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -107,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     loadHistory();
     initModelSelect();
+    initBatchModelSelect();
     setupEventListeners();
 });
 
@@ -208,28 +221,36 @@ function setupEventListeners() {
             sendGenerate();
         }
     });
-    
+
     // 生成按钮
     document.getElementById('generateBtn').addEventListener('click', sendGenerate);
-    
+
     // 模式切换
     document.querySelectorAll('.mode-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
             currentMode = this.dataset.mode;
-            
+
             const uploadArea = document.getElementById('uploadArea');
+            const batchArea = document.getElementById('batchArea');
+
             if (currentMode === 'image2image') {
                 uploadArea.style.display = 'flex';
+                batchArea.style.display = 'none';
+                document.getElementById('welcomeMessage').style.display = 'none';
+            } else if (currentMode === 'batch') {
+                uploadArea.style.display = 'none';
+                batchArea.style.display = 'block';
                 document.getElementById('welcomeMessage').style.display = 'none';
             } else {
                 uploadArea.style.display = 'none';
+                batchArea.style.display = 'none';
                 document.getElementById('welcomeMessage').style.display = 'flex';
             }
         });
     });
-    
+
     // 分辨率按钮
     document.querySelectorAll('.resolution-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -239,6 +260,12 @@ function setupEventListeners() {
             localStorage.setItem('resolution', currentResolution);
             updateModels();
         });
+    });
+
+    // 批量生成分辨率切换
+    document.getElementById('batchResolutionSelect').addEventListener('change', function() {
+        currentResolution = this.value;
+        updateBatchModels();
     });
 }
 
@@ -425,4 +452,286 @@ function escapeHtml(text) {
 function clearHistory() {
     localStorage.removeItem('promptHistory');
     loadHistory();
+}
+
+// ==================== 批量生成功能 ====================
+
+// 初始化批量模型选择
+function initBatchModelSelect() {
+    updateBatchModels();
+}
+
+// 更新批量模型列表
+function updateBatchModels() {
+    const select = document.getElementById('batchModelSelect');
+    select.innerHTML = '';
+
+    const models = MODELS[currentResolution] || [];
+    let lastVersion = '';
+
+    models.forEach(model => {
+        const version = getModelVersion(model);
+        if (version !== lastVersion) {
+            const group = document.createElement('optgroup');
+            group.label = version;
+            select.appendChild(group);
+            lastVersion = version;
+        }
+
+        const option = document.createElement('option');
+        option.value = model;
+        option.textContent = '  ' + getRatioDisplay(model);
+        select.appendChild(option);
+    });
+}
+
+// 应用设置到所有任务
+function applySettingsToAll() {
+    const model = document.getElementById('batchModelSelect').value;
+    const resolution = document.getElementById('batchResolutionSelect').value;
+
+    // 更新所有卡片的提示输入框placeholder或提示（这里只是视觉反馈）
+    const cards = document.querySelectorAll('.batch-card');
+    cards.forEach((card, index) => {
+        // 保存当前提示词
+        const task = batchTasks[index];
+        // 更新状态显示
+        updateTaskStatus(index);
+    });
+
+    alert('已应用设置到所有任务');
+}
+
+// 触发批量上传
+function triggerBatchUpload(taskIndex, imgIndex) {
+    currentBatchUploadTask = taskIndex;
+    currentBatchUploadIndex = imgIndex;
+    document.getElementById('batchImageInput').click();
+}
+
+// 处理批量图片上传
+function handleBatchImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        batchTasks[currentBatchUploadTask].images[currentBatchUploadIndex] = e.target.result;
+        updateBatchUploadPreview(currentBatchUploadTask, currentBatchUploadIndex);
+    };
+    reader.readAsDataURL(file);
+}
+
+// 更新批量上传预览
+function updateBatchUploadPreview(taskIndex, imgIndex) {
+    const card = document.querySelectorAll('.batch-card')[taskIndex];
+    const imgContainer = card.querySelectorAll('.batch-upload-item')[imgIndex];
+    const img = batchTasks[taskIndex].images[imgIndex];
+
+    if (img) {
+        imgContainer.classList.add('has-image');
+        imgContainer.innerHTML = `<img src="${img}" alt="参考图"><button class="btn-remove-img" onclick="event.stopPropagation(); removeBatchImage(${taskIndex}, ${imgIndex})">✕</button>`;
+    } else {
+        imgContainer.classList.remove('has-image');
+        imgContainer.innerHTML = '<span>+</span>';
+    }
+}
+
+// 移除批量图片
+function removeBatchImage(taskIndex, imgIndex) {
+    batchTasks[taskIndex].images[imgIndex] = null;
+    updateBatchUploadPreview(taskIndex, imgIndex);
+}
+
+// 开始单个任务
+async function startTask(taskIndex) {
+    const task = batchTasks[taskIndex];
+    const card = document.querySelectorAll('.batch-card')[taskIndex];
+    const promptInput = card.querySelector('.batch-prompt');
+    const btn = card.querySelector('.btn-batch-start');
+
+    // 获取提示词
+    task.prompt = promptInput.value.trim();
+
+    if (!task.prompt) {
+        alert('请输入提示词');
+        return;
+    }
+
+    // 检查API Key
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) {
+        alert('请输入 API Key');
+        return;
+    }
+
+    // 更新状态
+    task.status = 'generating';
+    updateTaskUI(taskIndex);
+
+    try {
+        const requestBody = {
+            apiKey: apiKey,
+            model: document.getElementById('batchModelSelect').value,
+            prompt: task.prompt
+        };
+
+        // 添加参考图
+        const images = task.images.filter(img => img !== null);
+        if (images.length > 0) {
+            requestBody.images = images;
+        }
+
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+            task.status = 'failed';
+            updateTaskUI(taskIndex);
+            alert(`任务${taskIndex + 1}生成失败: ${data.error}`);
+            return;
+        }
+
+        if (data.image) {
+            task.result = data.image;
+            task.status = 'completed';
+            updateTaskUI(taskIndex);
+        }
+
+    } catch (error) {
+        task.status = 'failed';
+        updateTaskUI(taskIndex);
+        console.error('Task error:', error);
+    }
+}
+
+// 更新任务UI
+function updateTaskUI(taskIndex) {
+    const task = batchTasks[taskIndex];
+    const card = document.querySelectorAll('.batch-card')[taskIndex];
+    const statusEl = card.querySelector('.batch-card-status');
+    const btn = card.querySelector('.btn-batch-start');
+    const resultEl = card.querySelector('.batch-card-result');
+
+    // 更新状态标签
+    statusEl.dataset.status = task.status;
+    const statusMap = {
+        pending: '待开始',
+        generating: '生成中',
+        completed: '已完成',
+        failed: '失败'
+    };
+    statusEl.textContent = statusMap[task.status] || '待开始';
+
+    // 更新按钮
+    btn.dataset.status = task.status;
+    const btnMap = {
+        pending: '开始',
+        generating: '停止',
+        completed: '下载',
+        failed: '重试'
+    };
+    btn.textContent = btnMap[task.status] || '开始';
+
+    // 绑定新的点击事件
+    btn.onclick = () => {
+        if (task.status === 'pending') startTask(taskIndex);
+        else if (task.status === 'generating') task.status = 'pending';
+        else if (task.status === 'completed') downloadImage(task.result);
+        else if (task.status === 'failed') startTask(taskIndex);
+    };
+
+    // 更新结果
+    if (task.result) {
+        resultEl.style.display = 'block';
+        resultEl.querySelector('img').src = task.result;
+        resultEl.querySelector('img').onclick = () => window.open(task.result, '_blank');
+    } else {
+        resultEl.style.display = 'none';
+    }
+}
+
+// 更新任务状态显示
+function updateTaskStatus(taskIndex) {
+    const task = batchTasks[taskIndex];
+    const card = document.querySelectorAll('.batch-card')[taskIndex];
+    const statusEl = card.querySelector('.batch-card-status');
+    statusEl.dataset.status = task.status;
+}
+
+// 清除单个任务
+function clearTask(taskIndex) {
+    batchTasks[taskIndex] = {
+        images: [null, null, null],
+        prompt: '',
+        result: null,
+        status: 'pending'
+    };
+
+    const card = document.querySelectorAll('.batch-card')[taskIndex];
+    card.querySelector('.batch-prompt').value = '';
+    card.querySelector('.batch-card-result').style.display = 'none';
+
+    // 清除图片预览
+    const imgContainers = card.querySelectorAll('.batch-upload-item');
+    imgContainers.forEach((container, index) => {
+        container.classList.remove('has-image');
+        container.innerHTML = '<span>+</span>';
+    });
+
+    updateTaskUI(taskIndex);
+}
+
+// 全部开始
+async function startAllTasks() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) {
+        alert('请输入 API Key');
+        return;
+    }
+
+    // 获取所有有提示词的任务并开始
+    for (let i = 0; i < batchTasks.length; i++) {
+        const task = batchTasks[i];
+        const card = document.querySelectorAll('.batch-card')[i];
+        task.prompt = card.querySelector('.batch-prompt').value.trim();
+
+        if (task.prompt && task.status === 'pending') {
+            await startTask(i);
+        }
+    }
+}
+
+// 清除所有任务
+function clearAllTasks() {
+    for (let i = 0; i < batchTasks.length; i++) {
+        clearTask(i);
+    }
+}
+
+// 下载所有结果
+function downloadAllResults() {
+    let hasResults = false;
+
+    batchTasks.forEach((task, index) => {
+        if (task.result) {
+            hasResults = true;
+            // 使用后端下载接口，支持跨域
+            const link = document.createElement('a');
+            link.href = `/api/download?url=${encodeURIComponent(task.result)}`;
+            link.download = `batch-image-${index + 1}-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    });
+
+    if (!hasResults) {
+        alert('没有可下载的结果');
+    }
 }

@@ -54,6 +54,7 @@
                 <div class="mode-tabs">
                     <button class="mode-tab active" data-mode="text2image">文生图</button>
                     <button class="mode-tab" data-mode="image2image">图生图</button>
+                    <button class="mode-tab" data-mode="batch">批量生成</button>
                 </div>
 
                 <!-- 上传区域（图生图用） -->
@@ -95,6 +96,193 @@
                     </div>
                     <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 </div>
+
+                <!-- 批量生成区域 -->
+                <div id="batchArea" class="batch-area" style="display: none;">
+                    <!-- 统一设置 -->
+                    <div class="batch-settings">
+                        <div class="batch-settings-title">📋 统一设置</div>
+                        <div class="batch-settings-row">
+                            <select id="batchModelSelect" class="batch-select">
+                                <!-- 动态生成 -->
+                            </select>
+                            <select id="batchResolutionSelect" class="batch-select">
+                                <option value="1K">1K</option>
+                                <option value="2K" selected>2K</option>
+                                <option value="4K">4K</option>
+                            </select>
+                            <button class="btn-apply-all" onclick="applySettingsToAll()">应用全部</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 批量任务卡片 -->
+                    <div class="batch-grid">
+                        <div class="batch-card" data-task-id="0">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 1</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(0)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(0, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(0, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(0, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(0)">开始</button>
+                            </div>
+                        </div>
+                        
+                        <div class="batch-card" data-task-id="1">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 2</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(1)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(1, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(1, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(1, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(1)">开始</button>
+                            </div>
+                        </div>
+                        
+                        <div class="batch-card" data-task-id="2">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 3</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(2)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(2, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(2, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(2, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(2)">开始</button>
+                            </div>
+                        </div>
+                        
+                        <div class="batch-card" data-task-id="3">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 4</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(3)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(3, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(3, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(3, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(3)">开始</button>
+                            </div>
+                        </div>
+                        
+                        <div class="batch-card" data-task-id="4">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 5</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(4)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(4, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(4, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(4, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(4)">开始</button>
+                            </div>
+                        </div>
+                        
+                        <div class="batch-card" data-task-id="5">
+                            <div class="batch-card-header">
+                                <span class="batch-card-title">任务 6</span>
+                                <span class="batch-card-status" data-status="pending">待开始</span>
+                                <button class="btn-clear-task" onclick="clearTask(5)">×</button>
+                            </div>
+                            <div class="batch-card-images">
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(5, 0)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(5, 1)">
+                                    <span>+</span>
+                                </div>
+                                <div class="batch-upload-item" onclick="triggerBatchUpload(5, 2)">
+                                    <span>+</span>
+                                </div>
+                            </div>
+                            <textarea class="batch-prompt" placeholder="输入提示词..." rows="2"></textarea>
+                            <div class="batch-card-result" style="display: none;">
+                                <img src="" alt="结果">
+                            </div>
+                            <div class="batch-card-actions">
+                                <button class="btn-batch-start" onclick="startTask(5)">开始</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 批量操作 -->
+                    <div class="batch-actions">
+                        <button class="btn-batch-all" onclick="startAllTasks()">全部开始</button>
+                        <button class="btn-batch-all" onclick="clearAllTasks()">清除全部</button>
+                        <button class="btn-batch-all btn-download-all" onclick="downloadAllResults()">下载全部</button>
+                    </div>
+                </div>
+                
+                <input type="file" id="batchImageInput" accept="image/*" style="display: none;" onchange="handleBatchImageUpload(event)">
 
                 <!-- 欢迎信息 -->
                 <div class="welcome-message" id="welcomeMessage">

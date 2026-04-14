@@ -647,8 +647,349 @@ body::before {
     .app-container {
         grid-template-columns: 1fr;
     }
-    
+
     .sidebar, .settings-sidebar {
         display: none;
+    }
+}
+
+/* ==================== 批量生成样式 ==================== */
+
+/* 批量生成区域 */
+.batch-area {
+    width: 100%;
+    max-width: 900px;
+}
+
+/* 统一设置 */
+.batch-settings {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.batch-settings-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.batch-settings-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.batch-select {
+    flex: 1;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.batch-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.btn-apply-all {
+    padding: 10px 20px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-apply-all:hover {
+    background: var(--accent-secondary);
+}
+
+/* 批量任务网格 */
+.batch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* 批量任务卡片 */
+.batch-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px;
+    transition: all 0.2s;
+}
+
+.batch-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+}
+
+.batch-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.batch-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.batch-card-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.batch-card-status[data-status="pending"] {
+    background: rgba(100, 116, 139, 0.2);
+    color: var(--text-secondary);
+}
+
+.batch-card-status[data-status="generating"] {
+    background: rgba(124, 58, 237, 0.2);
+    color: var(--accent-secondary);
+}
+
+.batch-card-status[data-status="completed"] {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.batch-card-status[data-status="failed"] {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.btn-clear-task {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-clear-task:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+/* 批量上传图片 */
+.batch-card-images {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.batch-upload-item {
+    flex: 1;
+    aspect-ratio: 1;
+    max-width: 70px;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg-tertiary);
+    overflow: hidden;
+    position: relative;
+}
+
+.batch-upload-item:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-card);
+}
+
+.batch-upload-item span {
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    font-weight: 300;
+}
+
+.batch-upload-item.has-image {
+    border-style: solid;
+    border-color: var(--accent-primary);
+}
+
+.batch-upload-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.batch-upload-item .btn-remove-img {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    font-size: 0.7rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 批量提示词输入 */
+.batch-prompt {
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-family: inherit;
+    resize: none;
+    margin-bottom: 12px;
+}
+
+.batch-prompt:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.batch-prompt::placeholder {
+    color: var(--text-muted);
+}
+
+/* 批量结果 */
+.batch-card-result {
+    margin-bottom: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.batch-card-result img {
+    width: 100%;
+    display: block;
+    cursor: pointer;
+}
+
+/* 批量操作按钮 */
+.batch-card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-batch-start {
+    flex: 1;
+    padding: 8px 16px;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-batch-start:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btn-batch-start:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-batch-start[data-status="generating"] {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.btn-batch-start[data-status="completed"] {
+    background: var(--success);
+}
+
+.btn-batch-start[data-status="failed"] {
+    background: var(--error);
+}
+
+/* 批量底部操作 */
+.batch-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.btn-batch-all {
+    padding: 12px 32px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-batch-all:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.btn-download-all {
+    background: var(--accent-gradient);
+    border-color: transparent;
+    color: white;
+}
+
+.btn-download-all:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+/* 响应式调整 */
+@media (max-width: 900px) {
+    .batch-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .batch-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .batch-settings-row {
+        flex-wrap: wrap;
+    }
+
+    .batch-select {
+        min-width: calc(50% - 6px);
     }
 }
