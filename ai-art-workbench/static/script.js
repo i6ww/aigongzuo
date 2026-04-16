@@ -100,6 +100,7 @@ let currentResolution = '2K';
 let currentMode = 'text2image';  // text2image 或 image2image 或 batch
 let uploadedImages = [null, null, null, null, null, null];  // 6张参考图
 let currentUploadIndex = 0;  // 当前上传的索引
+let currentUser = null;  // 当前登录用户
 
 // 批量生成状态
 let batchTasks = [
@@ -114,15 +115,147 @@ let currentBatchUploadTask = 0;
 let currentBatchUploadIndex = 0;
 
 // 初始化
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
     loadTheme();
     loadHistory();
-    loadApiKey();
     initModelSelect();
     initBatchModelSelect();
     setupEventListeners();
+    
+    // 检查登录状态
+    await checkLoginStatus();
 });
+
+// ==================== 登录相关 ====================
+
+// 检查登录状态
+async function checkLoginStatus() {
+    try {
+        const response = await fetch('/api/check-login');
+        const data = await response.json();
+        
+        if (data.success) {
+            currentUser = data.data;
+            showUserInfo(currentUser);
+        } else {
+            showLoginModal();
+        }
+    } catch (error) {
+        console.error('检查登录状态失败:', error);
+        showLoginModal();
+    }
+}
+
+// 显示用户信息
+function showUserInfo(user) {
+    document.getElementById('userInfo').style.display = 'block';
+    document.getElementById('userNotLogin').style.display = 'none';
+    document.getElementById('displayName').textContent = user.display_name || user.username;
+    document.getElementById('apiKeyStatus').textContent = user.has_api_key ? '已配置' : '未配置';
+    document.getElementById('apiKeyStatus').className = user.has_api_key ? 'status-ok' : 'status-warn';
+    document.getElementById('loginModal').style.display = 'none';
+}
+
+// 显示登录框
+function showLoginModal() {
+    document.getElementById('loginModal').style.display = 'flex';
+}
+
+// 处理登录
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const apiKey = document.getElementById('loginApiKey').value.trim();
+    const errorEl = document.getElementById('loginError');
+    const btn = document.querySelector('.btn-login');
+    
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '登录中...';
+    
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, apiKey })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentUser = data.data;
+            showUserInfo(currentUser);
+        } else {
+            errorEl.textContent = data.message || '登录失败';
+            errorEl.style.display = 'block';
+        }
+    } catch (error) {
+        errorEl.textContent = '网络错误，请重试';
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '登录';
+    }
+}
+
+// 退出登录
+async function handleLogout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+    } catch (error) {
+        console.error('退出登录失败:', error);
+    }
+    currentUser = null;
+    document.getElementById('userInfo').style.display = 'none';
+    document.getElementById('userNotLogin').style.display = 'block';
+    showLoginModal();
+}
+
+// 显示 API Key 输入框
+function showApiKeyInput() {
+    document.getElementById('apiKeyModal').style.display = 'flex';
+    document.getElementById('apiKeyInput').value = '';
+    document.getElementById('apiKeyInput').focus();
+}
+
+// 隐藏 API Key 输入框
+function hideApiKeyInput() {
+    document.getElementById('apiKeyModal').style.display = 'none';
+}
+
+// 保存 API Key
+async function saveApiKey() {
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    
+    if (!apiKey) {
+        alert('请输入 API Key');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/save-api-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentUser.has_api_key = true;
+            document.getElementById('apiKeyStatus').textContent = '已配置';
+            document.getElementById('apiKeyStatus').className = 'status-ok';
+            hideApiKeyInput();
+        } else {
+            alert(data.message || '保存失败');
+        }
+    } catch (error) {
+        alert('网络错误，请重试');
+    }
+}
 
 // 新建对话
 function newChat() {
@@ -382,11 +515,12 @@ function removeUploadedImage(index) {
 // 发送生成请求
 async function sendGenerate() {
     const prompt = document.getElementById('messageInput').value.trim();
-    const apiKey = document.getElementById('apiKey').value.trim();
     const model = document.getElementById('modelSelect').value;
     
-    if (!apiKey) {
-        alert('请输入 API Key');
+    // 检查登录状态
+    if (!currentUser) {
+        alert('请先登录');
+        showLoginModal();
         return;
     }
     
@@ -417,7 +551,6 @@ async function sendGenerate() {
     
     try {
         const requestBody = {
-            apiKey: apiKey,
             model: model,
             prompt: prompt
         };
@@ -465,7 +598,11 @@ async function sendGenerate() {
 
         if (data.error) {
             document.getElementById('resultLoading').style.display = 'none';
-            document.getElementById('resultContent').innerHTML = `<div class="error">生成失败: ${data.error}</div>`;
+            let errorHtml = `<div class="error">生成失败: ${data.error}</div>`;
+            if (data.need_config) {
+                errorHtml += `<button class="btn-primary" onclick="showApiKeyInput()">去设置 API Key</button>`;
+            }
+            document.getElementById('resultContent').innerHTML = errorHtml;
             if (data.debug) console.log('Debug:', data.debug);
             return;
         }
@@ -727,10 +864,10 @@ async function startTask(taskIndex) {
         return;
     }
 
-    // 检查API Key
-    const apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey) {
-        alert('请输入 API Key');
+    // 检查登录状态
+    if (!currentUser) {
+        alert('请先登录');
+        showLoginModal();
         return;
     }
 
@@ -740,7 +877,6 @@ async function startTask(taskIndex) {
 
     try {
         const requestBody = {
-            apiKey: apiKey,
             model: document.getElementById('batchModelSelect').value,
             prompt: task.prompt
         };
@@ -891,9 +1027,10 @@ function clearTask(taskIndex) {
 
 // 全部开始
 async function startAllTasks() {
-    const apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey) {
-        alert('请输入 API Key');
+    // 检查登录状态
+    if (!currentUser) {
+        alert('请先登录');
+        showLoginModal();
         return;
     }
 

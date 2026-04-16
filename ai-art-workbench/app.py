@@ -1,12 +1,13 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, session, send_from_directory
 import requests
 import json
 import re
 import base64
 import time
-
+import hashlib
 import os
 import logging
+from datetime import datetime
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -14,8 +15,57 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url_path='/')
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
 
 BASE_URL = "https://www.371181668.xyz"
+
+# 凭证存储文件路径
+CREDENTIALS_FILE = os.path.join(BASE_DIR, 'credentials.json')
+
+# 从文件加载保存的凭证
+def load_credentials():
+    try:
+        if os.path.exists(CREDENTIALS_FILE):
+            with open(CREDENTIALS_FILE, 'r') as f:
+                data = json.load(f)
+                logger.info(f"已加载凭证，上次登录时间: {data.get('last_login', '未知')}")
+                return data
+    except Exception as e:
+        logger.error(f"加载凭证失败: {e}")
+    return None
+
+# 保存凭证到文件
+def save_credentials(username, password):
+    try:
+        data = {
+            'username': username,
+            'password': password,
+            'last_login': datetime.now().isoformat()
+        }
+        with open(CREDENTIALS_FILE, 'w') as f:
+            json.dump(data, f)
+        logger.info(f"凭证已保存: {username}")
+        return True
+    except Exception as e:
+        logger.error(f"保存凭证失败: {e}")
+        return False
+
+# 清除凭证
+def clear_credentials():
+    try:
+        if os.path.exists(CREDENTIALS_FILE):
+            os.remove(CREDENTIALS_FILE)
+        return True
+    except Exception as e:
+        logger.error(f"清除凭证失败: {e}")
+        return False
+
+# 获取保存的 API Key
+def get_saved_api_key():
+    creds = load_credentials()
+    if creds and creds.get('api_key'):
+        return creds['api_key']
+    return None
 
 # 模型列表
 MODELS = {
@@ -129,6 +179,128 @@ def get_models():
     return jsonify(MODELS)
 
 
+@app.route('/api/login', methods=['POST'])
+def login():
+    """用户登录接口"""
+    logger.info("收到登录请求")
+    
+    if not request.is_json:
+        return jsonify({'success': False, 'message': 'Content-Type 必须为 application/json'}), 400
+    
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        return jsonify({'success': False, 'message': '用户名和密码不能为空'}), 400
+    
+    try:
+        # 调用上游登录接口验证
+        logger.info(f"正在验证用户: {username}")
+        response = requests.post(
+            f"{BASE_URL}/api/user/login",
+            json={"username": username, "password": password},
+            timeout=10
+        )
+        
+        result = response.json()
+        logger.info(f"上游响应: success={result.get('success')}, message={result.get('message')}")
+        
+        if result.get('success'):
+            # 登录成功，保存凭证
+            user_data = result.get('data', {})
+            api_key = data.get('apiKey', '').strip()  # 可选：用户可以提供自己的 API Key
+            
+            # 如果没有提供 API Key，尝试从保存的凭证获取
+            if not api_key:
+                saved = load_credentials()
+                if saved and saved.get('username') == username:
+                    api_key = saved.get('api_key', '')
+            
+            creds_data = {
+                'username': username,
+                'password': password,
+                'api_key': api_key,
+                'user_info': user_data,
+                'last_login': datetime.now().isoformat()
+            }
+            
+            with open(CREDENTIALS_FILE, 'w') as f:
+                json.dump(creds_data, f)
+            
+            return jsonify({
+                'success': True,
+                'message': '登录成功',
+                'data': {
+                    'username': username,
+                    'display_name': user_data.get('display_name', username),
+                    'has_api_key': bool(api_key)
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': result.get('message', '用户名或密码错误')
+            }), 401
+            
+    except requests.exceptions.Timeout:
+        logger.error("登录请求超时")
+        return jsonify({'success': False, 'message': '登录超时，请重试'}), 500
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"连接失败: {e}")
+        return jsonify({'success': False, 'message': '无法连接到服务器'}), 500
+    except Exception as e:
+        logger.error(f"登录异常: {e}")
+        return jsonify({'success': False, 'message': f'登录失败: {str(e)}'}), 500
+
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    """退出登录"""
+    clear_credentials()
+    return jsonify({'success': True, 'message': '已退出登录'})
+
+
+@app.route('/api/check-login', methods=['GET'])
+def check_login():
+    """检查登录状态"""
+    creds = load_credentials()
+    if creds and creds.get('username'):
+        return jsonify({
+            'success': True,
+            'data': {
+                'username': creds.get('username'),
+                'display_name': creds.get('user_info', {}).get('display_name', creds.get('username')),
+                'has_api_key': bool(creds.get('api_key'))
+            }
+        })
+    return jsonify({'success': False, 'message': '未登录'})
+
+
+@app.route('/api/save-api-key', methods=['POST'])
+def save_api_key():
+    """保存用户的 API Key"""
+    if not request.is_json:
+        return jsonify({'success': False, 'message': 'Content-Type 必须为 application/json'}), 400
+    
+    data = request.json
+    api_key = data.get('apiKey', '').strip()
+    
+    if not api_key:
+        return jsonify({'success': False, 'message': 'API Key 不能为空'}), 400
+    
+    creds = load_credentials()
+    if not creds or not creds.get('username'):
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    creds['api_key'] = api_key
+    with open(CREDENTIALS_FILE, 'w') as f:
+        json.dump(creds, f)
+    
+    logger.info(f"API Key 已保存 for user: {creds['username']}")
+    return jsonify({'success': True, 'message': 'API Key 已保存'})
+
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     logger.info(f"收到生成请求")
@@ -139,7 +311,6 @@ def generate():
         return jsonify({'error': 'Content-Type 必须为 application/json'}), 400
     
     data = request.json
-    api_key = data.get('apiKey')
     model = data.get('model')
     prompt = data.get('prompt')
     image_data = data.get('image')  # 单张图片
@@ -150,9 +321,24 @@ def generate():
     prompt_preview = prompt[:100] + '...' if prompt and len(prompt) > 100 else prompt
     logger.info(f"请求参数: model={model}, prompt长度={len(prompt) if prompt else 0}, 有图片={has_image}")
 
-    if not api_key or not model or not prompt:
-        logger.error(f"缺少必要参数: api_key={bool(api_key)}, model={model}, prompt={bool(prompt)}")
+    if not model or not prompt:
+        logger.error(f"缺少必要参数: model={model}, prompt={bool(prompt)}")
         return jsonify({'error': '缺少必要参数'}), 400
+    
+    # 从服务端获取保存的 API Key
+    api_key = None
+    creds = load_credentials()
+    if creds:
+        api_key = creds.get('api_key')
+    
+    # 如果没有保存的 Key，返回错误提示用户配置
+    if not api_key:
+        logger.error("未配置 API Key")
+        return jsonify({
+            'error': '请先在设置中配置 API Key',
+            'need_config': True,
+            'message': '请登录后配置您的 API Key'
+        }), 401
 
     try:
         # 构建消息内容

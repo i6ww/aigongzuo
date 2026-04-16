@@ -7,6 +7,31 @@
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content login-modal">
+            <h2>🎨 AI 画图工作台</h2>
+            <p class="login-tip">请登录 371181668.xyz 账号</p>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="loginUsername" placeholder="输入用户名" required>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="loginPassword" placeholder="输入密码" required>
+                </div>
+                <div class="form-group">
+                    <label>API Key（可选）</label>
+                    <input type="password" id="loginApiKey" placeholder="如果你有自己的 API Key">
+                    <small>不填则使用系统共享额度</small>
+                </div>
+                <button type="submit" class="btn-primary btn-login">登录</button>
+            </form>
+            <div id="loginError" class="login-error" style="display: none;"></div>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- 左侧边栏 -->
         <aside class="sidebar">
@@ -318,13 +343,34 @@
 
         <!-- 右侧设置栏 -->
         <aside class="settings-sidebar">
-            <div class="settings-section">
-                <h3>API 设置</h3>
-                <div class="form-group">
-                    <label>API Key</label>
-                    <div class="api-key-input-wrapper">
-                        <input type="password" id="apiKey" placeholder="输入你的 API Key">
-                        <span class="api-key-saved" id="apiKeySaved" style="display: none;">已保存</span>
+            <!-- 用户状态 -->
+            <div class="settings-section" id="userSection">
+                <h3>👤 账号</h3>
+                <div id="userInfo" class="user-info" style="display: none;">
+                    <div class="user-name">
+                        <span id="displayName"></span>
+                    </div>
+                    <div class="api-key-status">
+                        API Key: <span id="apiKeyStatus">未配置</span>
+                        <button class="btn-small" onclick="showApiKeyInput()">设置</button>
+                    </div>
+                    <button class="btn-logout" onclick="handleLogout()">退出登录</button>
+                </div>
+                <div id="userNotLogin">
+                    <p class="not-login-tip">未登录</p>
+                    <button class="btn-primary" onclick="showLoginModal()">登录</button>
+                </div>
+            </div>
+            
+            <!-- API Key 输入弹窗 -->
+            <div id="apiKeyModal" class="modal" style="display: none;">
+                <div class="modal-content api-key-modal">
+                    <h3>设置 API Key</h3>
+                    <p class="api-key-tip">填写你在 371181668.xyz 网站创建的 API Key</p>
+                    <input type="password" id="apiKeyInput" placeholder="sk-xxxxxxxxxx">
+                    <div class="api-key-actions">
+                        <button class="btn-secondary" onclick="hideApiKeyInput()">取消</button>
+                        <button class="btn-primary" onclick="saveApiKey()">保存</button>
                     </div>
                 </div>
             </div>
@@ -347,12 +393,12 @@
                 <h3>📋 更新日志</h3>
                 <div class="changelog">
                     <ul class="changelog-list">
+                        <li><span class="date">04.16</span> 新增用户名密码登录，API Key统一管理</li>
                         <li><span class="date">04.16</span> 修复网络超时问题，新增请求自动重试</li>
                         <li><span class="date">04.16</span> 优化错误提示，API Key过期等问题更清晰</li>
                         <li><span class="date">04.16</span> 新增新建对话按钮和API Key自动保存</li>
                         <li><span class="date">04.16</span> 优化图片结果排版，不遮挡参考图</li>
                         <li><span class="date">04.13</span> 新增主站点入口</li>
-                        <li><span class="date">04.10</span> 支持6张参考图</li>
                     </ul>
                 </div>
             </div>
