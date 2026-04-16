@@ -305,17 +305,30 @@ function setupEventListeners() {
         updateBatchModels();
     });
 
-    // API Key 自动保存
+    // API Key 自动保存（使用 blur 事件，避免浏览器自动填充触发保存）
     const apiKeyInput = document.getElementById('apiKey');
     const apiKeySaved = document.getElementById('apiKeySaved');
-    apiKeyInput.addEventListener('input', function() {
-        const value = this.value.trim();
+    
+    // 保存函数
+    function saveApiKey() {
+        const value = apiKeyInput.value.trim();
         if (value) {
             localStorage.setItem('apiKey', value);
             apiKeySaved.style.display = 'inline';
         } else {
             localStorage.removeItem('apiKey');
             apiKeySaved.style.display = 'none';
+        }
+    }
+    
+    // 失去焦点时保存（用户主动离开输入框时）
+    apiKeyInput.addEventListener('blur', saveApiKey);
+    
+    // 按回车时也保存
+    apiKeyInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            saveApiKey();
+            apiKeyInput.blur();
         }
     });
 }
